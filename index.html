@@ -36,7 +36,13 @@
         button:active {
             transform: translateY(0);
         }
-        .instrument-selector, .custom-sound {
+        .mixed-button {
+            background: #34C759 !important;
+        }
+        .mixed-button:hover {
+            background: #28A745 !important;
+        }
+        .instrument-selector, .custom-sound, .mixed-instruments {
             margin-top: 30px;
             padding: 20px;
             background: white;
@@ -76,6 +82,17 @@
         <button onclick="sfx.modalAppear()">Modal Appear</button>
     </div>
 
+    <div class="mixed-instruments">
+        <h3>💰 Mixed Instrument Effects</h3>
+        <p>Layered sounds combining multiple synthesizers</p>
+        <div class="controls">
+            <button class="mixed-button" onclick="sfx.cashOutSound()">💰 Cash Out</button>
+            <button class="mixed-button" onclick="sfx.levelUpSound()">⬆️ Level Up</button>
+            <button class="mixed-button" onclick="sfx.magicSparkSound()">✨ Magic Spark</button>
+            <button class="mixed-button" onclick="sfx.coinDropSound()">🪙 Coin Drop</button>
+        </div>
+    </div>
+
     <div class="custom-sound">
         <h3>Custom Sound Generator</h3>
         <select id="noteSelect">
@@ -105,6 +122,8 @@
             constructor() {
                 this.reverb = null;
                 this.synth = null;
+                this.pluckSynth = null;
+                this.sineSynth = null;
                 this.initialized = false;
                 this.currentInstrument = 'sine';
             }
@@ -120,6 +139,7 @@
                 }).toDestination();
                 
                 this.createSynth();
+                this.createMixedSynths();
                 await this.reverb.generate();
                 this.initialized = true;
             }
@@ -164,6 +184,27 @@
                 if (this.initialized) {
                     this.createSynth();
                 }
+            }
+
+            createMixedSynths() {
+                if (this.pluckSynth) this.pluckSynth.dispose();
+                if (this.sineSynth) this.sineSynth.dispose();
+
+                this.pluckSynth = new Tone.PluckSynth({
+                    attackNoise: 1,
+                    dampening: 4000,
+                    resonance: 0.7
+                }).connect(this.reverb);
+
+                this.sineSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.2,
+                        sustain: 0.4,
+                        release: 1.2
+                    }
+                }).connect(this.reverb);
             }
 
             async ensureInit() {
@@ -214,6 +255,64 @@
             async customSound(note, duration = '0.1') {
                 await this.ensureInit();
                 this.synth.triggerAttackRelease(note, duration);
+            }
+
+            // Mixed instrument sounds
+            async cashOutSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                
+                // Initial pluck for that satisfying "cha-ching" attack
+                this.pluckSynth.triggerAttackRelease('G5', '0.1', now);
+                
+                // Layered sine wave with waning effect (slides down but stays positive)
+                this.sineSynth.triggerAttackRelease('G5', '0.8', now + 0.05);
+                this.sineSynth.triggerAttackRelease('D5', '0.6', now + 0.15);
+                this.sineSynth.triggerAttackRelease('A4', '0.4', now + 0.3);
+                
+                // Additional harmonic for richness
+                this.sineSynth.triggerAttackRelease('B4', '0.5', now + 0.2);
+            }
+
+            async levelUpSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                
+                // Ascending pluck sequence
+                this.pluckSynth.triggerAttackRelease('C5', '0.08', now);
+                this.pluckSynth.triggerAttackRelease('E5', '0.08', now + 0.06);
+                this.pluckSynth.triggerAttackRelease('G5', '0.08', now + 0.12);
+                
+                // Sustained sine wave harmony
+                this.sineSynth.triggerAttackRelease('C6', '0.6', now + 0.15);
+                this.sineSynth.triggerAttackRelease('E6', '0.4', now + 0.2);
+            }
+
+            async magicSparkSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                
+                // Quick pluck arpeggios
+                this.pluckSynth.triggerAttackRelease('C6', '0.05', now);
+                this.pluckSynth.triggerAttackRelease('E6', '0.05', now + 0.03);
+                this.pluckSynth.triggerAttackRelease('G6', '0.05', now + 0.06);
+                
+                // Shimmering sine waves
+                this.sineSynth.triggerAttackRelease('C7', '0.3', now + 0.05);
+                this.sineSynth.triggerAttackRelease('G6', '0.4', now + 0.1);
+            }
+
+            async coinDropSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                
+                // High pluck for the "clink"
+                this.pluckSynth.triggerAttackRelease('C6', '0.06', now);
+                
+                // Descending sine wave for the "drop" bounce effect
+                this.sineSynth.triggerAttackRelease('A5', '0.15', now + 0.05);
+                this.sineSynth.triggerAttackRelease('F5', '0.12', now + 0.12);
+                this.sineSynth.triggerAttackRelease('D5', '0.1', now + 0.18);
             }
         }
 
