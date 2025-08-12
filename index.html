@@ -346,6 +346,7 @@
             constructor() {
                 this.reverb = null;
                 this.effectsChain = null;
+                this.recordingChain = null;
                 this.synth = null;
                 this.pluckSynth = null;
                 this.metalphoneSynth = null;
@@ -357,6 +358,7 @@
                 this.timelineElements = [];
                 this.isPlaying = false;
                 this.recorder = null;
+                this.isRecording = false;
             }
 
             async init() {
@@ -785,11 +787,8 @@
                 const mimeType = format === 'wav' ? 'audio/wav' : 'audio/webm';
                 this.recorder = new Tone.Recorder(mimeType);
                 
-                // Connect recorder properly - disconnect effects chain from destination first
-                this.effectsChain.disconnect();
-                
-                // Connect effects chain to both recorder and destination
-                this.effectsChain.fan(this.recorder, Tone.Destination);
+                // Connect recorder to the effects chain without disrupting normal audio flow
+                this.effectsChain.connect(this.recorder);
                 
                 this.recorder.start();
             }
@@ -798,9 +797,8 @@
                 if (!this.recorder) return null;
                 const recording = await this.recorder.stop();
                 
-                // Restore normal routing - disconnect from recorder and reconnect to destination
-                this.effectsChain.disconnect();
-                this.effectsChain.toDestination();
+                // Disconnect recorder from effects chain
+                this.effectsChain.disconnect(this.recorder);
                 
                 return recording;
             }
