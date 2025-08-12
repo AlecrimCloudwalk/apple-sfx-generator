@@ -77,6 +77,19 @@
         </select>
     </div>
 
+    <div class="instrument-selector">
+        <h3>🎛️ Analog Effects</h3>
+        <select id="effectsSelect">
+            <option value="none">Clean (No Effects)</option>
+            <option value="vintage">Vintage Warmth (Chorus + Saturation)</option>
+            <option value="analog">Analog Hardware (Compressor + Chorus)</option>
+            <option value="lofi">Lo-Fi Character (BitCrush + Filter)</option>
+            <option value="tube">Tube Amp (Distortion + Warmth)</option>
+            <option value="spacey">Spacey (Phaser + Delay)</option>
+            <option value="underwater">Underwater (Filter Sweep + Chorus)</option>
+        </select>
+    </div>
+
     <div class="controls">
         <button onclick="sfx.notificationChime()">Notification Chime</button>
         <button onclick="sfx.successSound()">Success Sound</button>
@@ -129,6 +142,7 @@
         class AppleSFXGenerator {
             constructor() {
                 this.reverb = null;
+                this.effectsChain = null;
                 this.synth = null;
                 this.pluckSynth = null;
                 this.metalphoneSynth = null;
@@ -136,6 +150,7 @@
                 this.harpSynth = null;
                 this.initialized = false;
                 this.currentInstrument = 'sine';
+                this.currentEffect = 'none';
             }
 
             async init() {
@@ -146,8 +161,9 @@
                 this.reverb = new Tone.Reverb({
                     decay: 1.5,
                     wet: 0.3
-                }).toDestination();
+                });
                 
+                this.createEffectsChain();
                 this.createSynth();
                 this.createMixedSynths();
                 await this.reverb.generate();
@@ -166,7 +182,7 @@
                         attackNoise: 1,
                         dampening: 4000,
                         resonance: 0.7
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else if (instrument === 'fmsine') {
                     this.synth = new Tone.FMSynth({
                         harmonicity: 3,
@@ -175,12 +191,12 @@
                         envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 },
                         modulation: { type: 'sine' },
                         modulationEnvelope: { attack: 0.006, decay: 0.2, sustain: 0.1, release: 0.8 }
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else if (instrument === 'piano') {
                     this.synth = new Tone.Synth({
                         oscillator: { type: 'triangle' },
                         envelope: { attack: 0.001, decay: 0.3, sustain: 0.1, release: 1.2 }
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else if (instrument === 'marimba') {
                     this.synth = new Tone.FMSynth({
                         harmonicity: 2,
@@ -189,7 +205,7 @@
                         envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 1.0 },
                         modulation: { type: 'sine' },
                         modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 }
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else if (instrument === 'metalphone') {
                     this.synth = new Tone.FMSynth({
                         harmonicity: 8,
@@ -198,13 +214,13 @@
                         envelope: { attack: 0.001, decay: 0.5, sustain: 0.2, release: 2.0 },
                         modulation: { type: 'sine' },
                         modulationEnvelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else if (instrument === 'harp') {
                     this.synth = new Tone.PluckSynth({
                         attackNoise: 0.2,
                         dampening: 6000,
                         resonance: 0.9
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 } else {
                     this.synth = new Tone.Synth({
                         oscillator: { type: instrument },
@@ -214,7 +230,7 @@
                             sustain: 0.3,
                             release: 0.8
                         }
-                    }).connect(this.reverb);
+                    }).connect(this.effectsChain);
                 }
             }
 
@@ -222,6 +238,59 @@
                 this.currentInstrument = instrument;
                 if (this.initialized) {
                     this.createSynth();
+                }
+            }
+
+            createEffectsChain() {
+                if (this.effectsChain) {
+                    this.effectsChain.dispose();
+                }
+
+                const effect = this.currentEffect;
+                
+                if (effect === 'vintage') {
+                    // Chorus + Saturation for vintage warmth
+                    const chorus = new Tone.Chorus(4, 2.5, 0.5);
+                    const distortion = new Tone.Distortion(0.2);
+                    this.effectsChain = chorus.chain(distortion, this.reverb).toDestination();
+                } else if (effect === 'analog') {
+                    // Compressor + Chorus for hardware feel
+                    const compressor = new Tone.Compressor(-30, 3);
+                    const chorus = new Tone.Chorus(2, 3.5, 0.3);
+                    this.effectsChain = compressor.chain(chorus, this.reverb).toDestination();
+                } else if (effect === 'lofi') {
+                    // BitCrush + Filter for lo-fi character
+                    const bitCrush = new Tone.BitCrusher(6);
+                    const filter = new Tone.Filter(2000, "lowpass");
+                    this.effectsChain = bitCrush.chain(filter, this.reverb).toDestination();
+                } else if (effect === 'tube') {
+                    // Distortion + Warmth for tube amp
+                    const distortion = new Tone.Distortion(0.4);
+                    const filter = new Tone.Filter(3000, "lowpass");
+                    this.effectsChain = distortion.chain(filter, this.reverb).toDestination();
+                } else if (effect === 'spacey') {
+                    // Phaser + Delay for spacey effects
+                    const phaser = new Tone.Phaser(0.5, 3, 350);
+                    const delay = new Tone.Delay(0.2);
+                    this.effectsChain = phaser.chain(delay, this.reverb).toDestination();
+                } else if (effect === 'underwater') {
+                    // Filter Sweep + Chorus for underwater feel
+                    const autoFilter = new Tone.AutoFilter(0.3, 200, 4);
+                    const chorus = new Tone.Chorus(6, 2, 0.8);
+                    this.effectsChain = autoFilter.chain(chorus, this.reverb).toDestination();
+                    autoFilter.start();
+                } else {
+                    // Clean - no effects, just reverb
+                    this.effectsChain = this.reverb.toDestination();
+                }
+            }
+
+            async changeEffect(effect) {
+                this.currentEffect = effect;
+                if (this.initialized) {
+                    this.createEffectsChain();
+                    this.createSynth();
+                    this.createMixedSynths();
                 }
             }
 
@@ -237,7 +306,7 @@
                     attackNoise: 1,
                     dampening: 4000,
                     resonance: 0.7
-                }).connect(this.reverb);
+                }).connect(this.effectsChain);
 
                 this.metalphoneSynth = new Tone.FMSynth({
                     harmonicity: 8,
@@ -246,7 +315,7 @@
                     envelope: { attack: 0.001, decay: 0.5, sustain: 0.2, release: 2.0 },
                     modulation: { type: 'sine' },
                     modulationEnvelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
-                }).connect(this.reverb);
+                }).connect(this.effectsChain);
 
                 this.marimbaSync = new Tone.FMSynth({
                     harmonicity: 2,
@@ -255,13 +324,13 @@
                     envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 1.0 },
                     modulation: { type: 'sine' },
                     modulationEnvelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 }
-                }).connect(this.reverb);
+                }).connect(this.effectsChain);
 
                 this.harpSynth = new Tone.PluckSynth({
                     attackNoise: 0.2,
                     dampening: 6000,
                     resonance: 0.9
-                }).connect(this.reverb);
+                }).connect(this.effectsChain);
             }
 
             async ensureInit() {
@@ -439,6 +508,12 @@
         const instrumentSelect = document.getElementById('instrumentSelect');
         instrumentSelect.addEventListener('change', async () => {
             await sfx.changeInstrument(instrumentSelect.value);
+        });
+
+        // Effects selector
+        const effectsSelect = document.getElementById('effectsSelect');
+        effectsSelect.addEventListener('change', async () => {
+            await sfx.changeEffect(effectsSelect.value);
         });
 
         // Custom sound controls
