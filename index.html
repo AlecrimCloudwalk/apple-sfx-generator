@@ -784,13 +784,24 @@
                 // Set format for better compatibility
                 const mimeType = format === 'wav' ? 'audio/wav' : 'audio/webm';
                 this.recorder = new Tone.Recorder(mimeType);
-                Tone.Destination.connect(this.recorder);
+                
+                // Connect recorder properly - disconnect effects chain from destination first
+                this.effectsChain.disconnect();
+                
+                // Connect effects chain to both recorder and destination
+                this.effectsChain.fan(this.recorder, Tone.Destination);
+                
                 this.recorder.start();
             }
 
             async stopRecording() {
                 if (!this.recorder) return null;
                 const recording = await this.recorder.stop();
+                
+                // Restore normal routing - disconnect from recorder and reconnect to destination
+                this.effectsChain.disconnect();
+                this.effectsChain.toDestination();
+                
                 return recording;
             }
 
