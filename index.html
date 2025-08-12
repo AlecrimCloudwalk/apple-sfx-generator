@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple SFX Generator</title>
+    <script src="https://unpkg.com/tone@15.1.22/build/Tone.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            background: #0051D0;
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .custom-sound {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Apple SFX Generator</h1>
+    <p>Click buttons to generate Apple-style UI sound effects</p>
+
+    <div class="controls">
+        <button onclick="sfx.notificationChime()">Notification Chime</button>
+        <button onclick="sfx.successSound()">Success Sound</button>
+        <button onclick="sfx.buttonClick()">Button Click</button>
+        <button onclick="sfx.errorSound()">Error Sound</button>
+        <button onclick="sfx.swipeSound()">Swipe Sound</button>
+        <button onclick="sfx.modalAppear()">Modal Appear</button>
+    </div>
+
+    <div class="custom-sound">
+        <h3>Custom Sound Generator</h3>
+        <select id="noteSelect">
+            <option value="C4">C4</option>
+            <option value="D4">D4</option>
+            <option value="E4">E4</option>
+            <option value="F4">F4</option>
+            <option value="G4">G4</option>
+            <option value="A4">A4</option>
+            <option value="B4">B4</option>
+            <option value="C5">C5</option>
+            <option value="D5">D5</option>
+            <option value="E5">E5</option>
+            <option value="F5">F5</option>
+            <option value="G5">G5</option>
+            <option value="A5">A5</option>
+            <option value="B5">B5</option>
+            <option value="C6">C6</option>
+        </select>
+        <input type="range" id="durationSlider" min="0.05" max="1" step="0.05" value="0.1">
+        <span id="durationValue">0.1s</span>
+        <button onclick="playCustomSound()">Play Custom</button>
+    </div>
+
+    <script>
+        class AppleSFXGenerator {
+            constructor() {
+                this.reverb = null;
+                this.synth = null;
+                this.initialized = false;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                
+                await Tone.start();
+                
+                this.reverb = new Tone.Reverb({
+                    decay: 1.5,
+                    wet: 0.3
+                }).toDestination();
+                
+                this.synth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.1,
+                        sustain: 0.3,
+                        release: 0.8
+                    }
+                }).connect(this.reverb);
+
+                await this.reverb.generate();
+                this.initialized = true;
+            }
+
+            async ensureInit() {
+                if (!this.initialized) await this.init();
+            }
+
+            async notificationChime() {
+                await this.ensureInit();
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('G5', '0.15', now);
+                this.synth.triggerAttackRelease('C6', '0.2', now + 0.1);
+            }
+
+            async successSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('C5', '0.1', now);
+                this.synth.triggerAttackRelease('E5', '0.1', now + 0.05);
+                this.synth.triggerAttackRelease('G5', '0.15', now + 0.1);
+            }
+
+            async buttonClick() {
+                await this.ensureInit();
+                this.synth.triggerAttackRelease('C6', '0.05');
+            }
+
+            async errorSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('F4', '0.1', now);
+                this.synth.triggerAttackRelease('D4', '0.15', now + 0.05);
+            }
+
+            async swipeSound() {
+                await this.ensureInit();
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('A4', '0.08', now);
+                this.synth.triggerAttackRelease('C5', '0.06', now + 0.04);
+            }
+
+            async modalAppear() {
+                await this.ensureInit();
+                const now = Tone.now();
+                this.synth.triggerAttackRelease('G4', '0.12', now);
+                this.synth.triggerAttackRelease('D5', '0.18', now + 0.08);
+            }
+
+            async customSound(note, duration = '0.1') {
+                await this.ensureInit();
+                this.synth.triggerAttackRelease(note, duration);
+            }
+        }
+
+        const sfx = new AppleSFXGenerator();
+
+        // Custom sound controls
+        const durationSlider = document.getElementById('durationSlider');
+        const durationValue = document.getElementById('durationValue');
+        
+        durationSlider.addEventListener('input', () => {
+            durationValue.textContent = durationSlider.value + 's';
+        });
+
+        async function playCustomSound() {
+            const note = document.getElementById('noteSelect').value;
+            const duration = durationSlider.value;
+            await sfx.customSound(note, duration);
+        }
+    </script>
+</body>
+</html>
