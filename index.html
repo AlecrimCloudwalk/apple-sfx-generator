@@ -242,9 +242,13 @@
             }
 
             createEffectsChain() {
-                if (this.effectsChain) {
+                // Properly dispose existing effects but keep reverb
+                if (this.effectsChain && this.effectsChain !== this.reverb) {
                     this.effectsChain.dispose();
                 }
+                
+                // Disconnect reverb from destination
+                this.reverb.disconnect();
 
                 const effect = this.currentEffect;
                 
@@ -280,9 +284,8 @@
                     this.effectsChain = autoFilter.chain(chorus, this.reverb).toDestination();
                     autoFilter.start();
                 } else {
-                    // Clean - no effects, just reverb to destination
-                    this.effectsChain = this.reverb;
-                    this.effectsChain.toDestination();
+                    // Clean - no effects, just reverb directly to destination
+                    this.effectsChain = this.reverb.toDestination();
                 }
             }
 
