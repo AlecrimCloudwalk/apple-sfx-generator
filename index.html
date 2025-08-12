@@ -55,6 +55,104 @@
             border-radius: 6px;
             margin: 5px;
         }
+        .timeline-controls {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .timeline-controls button {
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        .element-palette {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f0f0f2;
+            border-radius: 8px;
+            border: 2px dashed #ccc;
+        }
+        .palette-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #666;
+        }
+        .element-item {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 5px;
+            background: #007AFF;
+            color: white;
+            border-radius: 6px;
+            cursor: grab;
+            user-select: none;
+            font-size: 12px;
+        }
+        .element-item:active {
+            cursor: grabbing;
+        }
+        .timeline-container {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .timeline-header {
+            width: 100px;
+            background: #f8f8f8;
+            border-right: 1px solid #ddd;
+        }
+        .track-label {
+            height: 50px;
+            padding: 15px 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            background: #f0f0f0;
+        }
+        .track-label:last-child {
+            border-bottom: none;
+        }
+        .timeline-grid {
+            flex: 1;
+            background: linear-gradient(90deg, transparent 24px, #e0e0e0 25px);
+            background-size: 100px 1px;
+            position: relative;
+        }
+        .timeline-track {
+            height: 50px;
+            border-bottom: 1px solid #ddd;
+            position: relative;
+            background: repeating-linear-gradient(90deg, transparent, transparent 99px, #e0e0e0 100px);
+        }
+        .timeline-track:last-child {
+            border-bottom: none;
+        }
+        .timeline-track.drag-over {
+            background-color: rgba(0, 122, 255, 0.1);
+        }
+        .timeline-element {
+            position: absolute;
+            height: 30px;
+            top: 10px;
+            background: #34C759;
+            color: white;
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            min-width: 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .timeline-element:hover {
+            background: #28A745;
+        }
     </style>
 </head>
 <body>
@@ -115,6 +213,41 @@
     </div>
 
     <div class="custom-sound">
+        <h3>🎛️ SFX Timeline Builder</h3>
+        <p>Drag elements onto tracks to create layered sound effects</p>
+        
+        <div class="timeline-controls">
+            <button id="playTimeline">▶️ Play</button>
+            <button id="stopTimeline">⏹️ Stop</button>
+            <button id="clearTimeline">🗑️ Clear</button>
+            <span>Duration: 2.0s</span>
+        </div>
+
+        <div class="element-palette">
+            <div class="palette-title">Drag to Timeline:</div>
+            <div class="element-item" draggable="true" data-instrument="pluck" data-note="G5">🎸 Pluck G5</div>
+            <div class="element-item" draggable="true" data-instrument="metalphone" data-note="G5">🔔 Metal G5</div>
+            <div class="element-item" draggable="true" data-instrument="marimba" data-note="G4">🔨 Marimba G4</div>
+            <div class="element-item" draggable="true" data-instrument="harp" data-note="C5">🪈 Harp C5</div>
+        </div>
+
+        <div class="timeline-container">
+            <div class="timeline-header">
+                <div class="track-label">Pluck</div>
+                <div class="track-label">Metalphone</div>
+                <div class="track-label">Marimba</div>
+                <div class="track-label">Harp</div>
+            </div>
+            <div class="timeline-grid">
+                <div class="timeline-track" data-track="pluck"></div>
+                <div class="timeline-track" data-track="metalphone"></div>
+                <div class="timeline-track" data-track="marimba"></div>
+                <div class="timeline-track" data-track="harp"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="custom-sound">
         <h3>Custom Sound Generator</h3>
         <select id="noteSelect">
             <option value="C4">C4</option>
@@ -151,6 +284,8 @@
                 this.initialized = false;
                 this.currentInstrument = 'sine';
                 this.currentEffect = 'none';
+                this.timelineElements = [];
+                this.isPlaying = false;
             }
 
             async init() {
@@ -504,6 +639,69 @@
                 this.marimbaSync.triggerAttackRelease('F3', '0.4', now + 0.1);
                 this.marimbaSync.triggerAttackRelease('A3', '0.3', now + 0.2);
             }
+
+            // Timeline methods
+            addTimelineElement(instrument, note, time) {
+                const element = {
+                    id: Date.now() + Math.random(),
+                    instrument,
+                    note,
+                    time,
+                    duration: 0.2
+                };
+                this.timelineElements.push(element);
+                return element;
+            }
+
+            removeTimelineElement(id) {
+                this.timelineElements = this.timelineElements.filter(el => el.id !== id);
+            }
+
+            clearTimeline() {
+                this.timelineElements = [];
+                this.stopTimeline();
+            }
+
+            async playTimeline() {
+                if (this.isPlaying) return;
+                await this.ensureInit();
+                
+                this.isPlaying = true;
+                Tone.Transport.cancel();
+                
+                // Schedule all elements
+                this.timelineElements.forEach(element => {
+                    Tone.Transport.schedule((time) => {
+                        const synth = this.getSynthForInstrument(element.instrument);
+                        if (synth) {
+                            synth.triggerAttackRelease(element.note, element.duration, time);
+                        }
+                    }, element.time);
+                });
+
+                // Stop after 2 seconds
+                Tone.Transport.schedule(() => {
+                    this.stopTimeline();
+                }, 2);
+
+                Tone.Transport.start();
+            }
+
+            stopTimeline() {
+                this.isPlaying = false;
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+            }
+
+            getSynthForInstrument(instrument) {
+                switch(instrument) {
+                    case 'pluck': return this.pluckSynth;
+                    case 'metalphone': return this.metalphoneSynth;
+                    case 'marimba': return this.marimbaSync;
+                    case 'harp': return this.harpSynth;
+                    default: return null;
+                }
+            }
         }
 
         const sfx = new AppleSFXGenerator();
@@ -533,6 +731,105 @@
             const duration = durationSlider.value;
             await sfx.customSound(note, duration);
         }
+
+        // Timeline functionality
+        let draggedElement = null;
+
+        function initTimeline() {
+            // Timeline controls
+            document.getElementById('playTimeline').addEventListener('click', () => {
+                sfx.playTimeline();
+            });
+            
+            document.getElementById('stopTimeline').addEventListener('click', () => {
+                sfx.stopTimeline();
+            });
+            
+            document.getElementById('clearTimeline').addEventListener('click', () => {
+                sfx.clearTimeline();
+                updateTimelineDisplay();
+            });
+
+            // Drag and drop setup
+            const elementItems = document.querySelectorAll('.element-item');
+            const timelineTracks = document.querySelectorAll('.timeline-track');
+
+            elementItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedElement = {
+                        instrument: e.target.dataset.instrument,
+                        note: e.target.dataset.note,
+                        text: e.target.textContent
+                    };
+                });
+            });
+
+            timelineTracks.forEach(track => {
+                track.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    track.classList.add('drag-over');
+                });
+
+                track.addEventListener('dragleave', () => {
+                    track.classList.remove('drag-over');
+                });
+
+                track.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    track.classList.remove('drag-over');
+                    
+                    if (draggedElement && draggedElement.instrument === track.dataset.track) {
+                        const rect = track.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const time = (x / rect.width) * 2; // 2 second timeline
+                        
+                        if (time >= 0 && time <= 2) {
+                            const element = sfx.addTimelineElement(
+                                draggedElement.instrument,
+                                draggedElement.note,
+                                time
+                            );
+                            updateTimelineDisplay();
+                        }
+                    }
+                    draggedElement = null;
+                });
+            });
+        }
+
+        function updateTimelineDisplay() {
+            const tracks = document.querySelectorAll('.timeline-track');
+            
+            // Clear existing elements
+            tracks.forEach(track => {
+                const elements = track.querySelectorAll('.timeline-element');
+                elements.forEach(el => el.remove());
+            });
+
+            // Add current elements
+            sfx.timelineElements.forEach(element => {
+                const track = document.querySelector(`[data-track="${element.instrument}"]`);
+                if (track) {
+                    const timelineEl = document.createElement('div');
+                    timelineEl.className = 'timeline-element';
+                    timelineEl.textContent = element.note;
+                    timelineEl.style.left = (element.time / 2) * 100 + '%';
+                    
+                    // Click to remove
+                    timelineEl.addEventListener('click', () => {
+                        sfx.removeTimelineElement(element.id);
+                        updateTimelineDisplay();
+                    });
+                    
+                    track.appendChild(timelineEl);
+                }
+            });
+        }
+
+        // Initialize timeline when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initTimeline();
+        });
     </script>
 </body>
 </html>
