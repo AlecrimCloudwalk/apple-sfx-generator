@@ -804,18 +804,41 @@
             }
 
             async recordAndExport(soundFunction, filename = 'sfx', format = 'wav') {
-                await this.startRecording(format);
+                await this.ensureInit();
                 
-                // Play the sound
-                await soundFunction.call(this);
+                // Create a dedicated recorder connected to the effects chain output
+                if (this.recorder) {
+                    this.recorder.dispose();
+                }
                 
-                // Wait a bit longer than the sound to capture full decay
+                const mimeType = format === 'wav' ? 'audio/wav' : 'audio/webm';
+                this.recorder = new Tone.Recorder(mimeType);
+                
+                // Connect effects chain to both destination AND recorder using fan
+                this.effectsChain.disconnect();
+                this.effectsChain.fan(this.recorder, Tone.Destination);
+                
+                // Start recording
+                this.recorder.start();
+                
+                // Small delay to ensure recording is active
                 setTimeout(async () => {
-                    const recording = await this.stopRecording();
-                    if (recording) {
-                        this.downloadRecording(recording, filename, format);
-                    }
-                }, 3000);
+                    // Play the sound
+                    await soundFunction.call(this);
+                    
+                    // Wait for sound to complete + decay
+                    setTimeout(async () => {
+                        const recording = await this.recorder.stop();
+                        
+                        // Restore normal routing
+                        this.effectsChain.disconnect();
+                        this.effectsChain.toDestination();
+                        
+                        if (recording) {
+                            this.downloadRecording(recording, filename, format);
+                        }
+                    }, 3000);
+                }, 100);
             }
 
             downloadRecording(blob, filename, format = 'wav') {
