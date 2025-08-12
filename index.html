@@ -36,7 +36,7 @@
         button:active {
             transform: translateY(0);
         }
-        .custom-sound {
+        .instrument-selector, .custom-sound {
             margin-top: 30px;
             padding: 20px;
             background: white;
@@ -54,6 +54,18 @@
 <body>
     <h1>🔊 Apple SFX Generator</h1>
     <p>Click buttons to generate Apple-style UI sound effects</p>
+
+    <div class="instrument-selector">
+        <h3>🎹 Instrument</h3>
+        <select id="instrumentSelect">
+            <option value="sine">Sine Wave (Pure, Clean)</option>
+            <option value="triangle">Triangle Wave (Warm, Soft)</option>
+            <option value="sawtooth">Sawtooth (Bright, Electronic)</option>
+            <option value="square">Square Wave (Digital, Retro)</option>
+            <option value="fmsine">FM Synthesis (Bell-like)</option>
+            <option value="pluck">Pluck (String Attack)</option>
+        </select>
+    </div>
 
     <div class="controls">
         <button onclick="sfx.notificationChime()">Notification Chime</button>
@@ -94,6 +106,7 @@
                 this.reverb = null;
                 this.synth = null;
                 this.initialized = false;
+                this.currentInstrument = 'sine';
             }
 
             async init() {
@@ -106,18 +119,51 @@
                     wet: 0.3
                 }).toDestination();
                 
-                this.synth = new Tone.Synth({
-                    oscillator: { type: 'sine' },
-                    envelope: {
-                        attack: 0.005,
-                        decay: 0.1,
-                        sustain: 0.3,
-                        release: 0.8
-                    }
-                }).connect(this.reverb);
-
+                this.createSynth();
                 await this.reverb.generate();
                 this.initialized = true;
+            }
+
+            createSynth() {
+                if (this.synth) {
+                    this.synth.dispose();
+                }
+
+                const instrument = this.currentInstrument;
+                
+                if (instrument === 'pluck') {
+                    this.synth = new Tone.PluckSynth({
+                        attackNoise: 1,
+                        dampening: 4000,
+                        resonance: 0.7
+                    }).connect(this.reverb);
+                } else if (instrument === 'fmsine') {
+                    this.synth = new Tone.FMSynth({
+                        harmonicity: 3,
+                        modulationIndex: 10,
+                        oscillator: { type: 'sine' },
+                        envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 },
+                        modulation: { type: 'sine' },
+                        modulationEnvelope: { attack: 0.006, decay: 0.2, sustain: 0.1, release: 0.8 }
+                    }).connect(this.reverb);
+                } else {
+                    this.synth = new Tone.Synth({
+                        oscillator: { type: instrument },
+                        envelope: {
+                            attack: 0.005,
+                            decay: 0.1,
+                            sustain: 0.3,
+                            release: 0.8
+                        }
+                    }).connect(this.reverb);
+                }
+            }
+
+            async changeInstrument(instrument) {
+                this.currentInstrument = instrument;
+                if (this.initialized) {
+                    this.createSynth();
+                }
             }
 
             async ensureInit() {
@@ -172,6 +218,12 @@
         }
 
         const sfx = new AppleSFXGenerator();
+
+        // Instrument selector
+        const instrumentSelect = document.getElementById('instrumentSelect');
+        instrumentSelect.addEventListener('change', async () => {
+            await sfx.changeInstrument(instrumentSelect.value);
+        });
 
         // Custom sound controls
         const durationSlider = document.getElementById('durationSlider');
