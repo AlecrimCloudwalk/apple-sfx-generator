@@ -153,6 +153,23 @@
         .timeline-element:hover {
             background: #28A745;
         }
+        .sound-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+        }
+        .sound-row button {
+            flex: 1;
+        }
+        .export-btn {
+            background: #FF9500 !important;
+            min-width: 80px;
+            flex: 0 0 auto;
+        }
+        .export-btn:hover {
+            background: #CC7700 !important;
+        }
     </style>
 </head>
 <body>
@@ -189,26 +206,68 @@
     </div>
 
     <div class="controls">
-        <button onclick="sfx.notificationChime()">Notification Chime</button>
-        <button onclick="sfx.successSound()">Success Sound</button>
-        <button onclick="sfx.buttonClick()">Button Click</button>
-        <button onclick="sfx.errorSound()">Error Sound</button>
-        <button onclick="sfx.swipeSound()">Swipe Sound</button>
-        <button onclick="sfx.modalAppear()">Modal Appear</button>
+        <div class="sound-row">
+            <button onclick="sfx.notificationChime()">Notification Chime</button>
+            <button class="export-btn" onclick="exportSound('notificationChime', 'notification-chime')">📥 Export</button>
+        </div>
+        <div class="sound-row">
+            <button onclick="sfx.successSound()">Success Sound</button>
+            <button class="export-btn" onclick="exportSound('successSound', 'success-sound')">📥 Export</button>
+        </div>
+        <div class="sound-row">
+            <button onclick="sfx.buttonClick()">Button Click</button>
+            <button class="export-btn" onclick="exportSound('buttonClick', 'button-click')">📥 Export</button>
+        </div>
+        <div class="sound-row">
+            <button onclick="sfx.errorSound()">Error Sound</button>
+            <button class="export-btn" onclick="exportSound('errorSound', 'error-sound')">📥 Export</button>
+        </div>
+        <div class="sound-row">
+            <button onclick="sfx.swipeSound()">Swipe Sound</button>
+            <button class="export-btn" onclick="exportSound('swipeSound', 'swipe-sound')">📥 Export</button>
+        </div>
+        <div class="sound-row">
+            <button onclick="sfx.modalAppear()">Modal Appear</button>
+            <button class="export-btn" onclick="exportSound('modalAppear', 'modal-appear')">📥 Export</button>
+        </div>
     </div>
 
     <div class="mixed-instruments">
         <h3>💰 Mixed Instrument Effects</h3>
         <p>Layered sounds combining multiple synthesizers</p>
         <div class="controls">
-            <button class="mixed-button" onclick="sfx.cashOutSound()">💰 Cash Out</button>
-            <button class="mixed-button" onclick="sfx.levelUpSound()">⬆️ Level Up</button>
-            <button class="mixed-button" onclick="sfx.magicSparkSound()">✨ Magic Spark</button>
-            <button class="mixed-button" onclick="sfx.coinDropSound()">🪙 Coin Drop</button>
-            <button class="mixed-button" onclick="sfx.windChimeSound()">🎐 Wind Chime</button>
-            <button class="mixed-button" onclick="sfx.treasureOpenSound()">🏴‍☠️ Treasure Open</button>
-            <button class="mixed-button" onclick="sfx.crystalResonanceSound()">💎 Crystal Resonance</button>
-            <button class="mixed-button" onclick="sfx.gentleRainSound()">🌧️ Gentle Rain</button>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.cashOutSound()">💰 Cash Out</button>
+                <button class="export-btn" onclick="exportSound('cashOutSound', 'cash-out')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.levelUpSound()">⬆️ Level Up</button>
+                <button class="export-btn" onclick="exportSound('levelUpSound', 'level-up')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.magicSparkSound()">✨ Magic Spark</button>
+                <button class="export-btn" onclick="exportSound('magicSparkSound', 'magic-spark')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.coinDropSound()">🪙 Coin Drop</button>
+                <button class="export-btn" onclick="exportSound('coinDropSound', 'coin-drop')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.windChimeSound()">🎐 Wind Chime</button>
+                <button class="export-btn" onclick="exportSound('windChimeSound', 'wind-chime')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.treasureOpenSound()">🏴‍☠️ Treasure Open</button>
+                <button class="export-btn" onclick="exportSound('treasureOpenSound', 'treasure-open')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.crystalResonanceSound()">💎 Crystal Resonance</button>
+                <button class="export-btn" onclick="exportSound('crystalResonanceSound', 'crystal-resonance')">📥 Export</button>
+            </div>
+            <div class="sound-row">
+                <button class="mixed-button" onclick="sfx.gentleRainSound()">🌧️ Gentle Rain</button>
+                <button class="export-btn" onclick="exportSound('gentleRainSound', 'gentle-rain')">📥 Export</button>
+            </div>
         </div>
     </div>
 
@@ -286,6 +345,7 @@
                 this.currentEffect = 'none';
                 this.timelineElements = [];
                 this.isPlaying = false;
+                this.recorder = null;
             }
 
             async init() {
@@ -702,6 +762,47 @@
                     default: return null;
                 }
             }
+
+            // Recording methods
+            async startRecording() {
+                await this.ensureInit();
+                if (this.recorder) {
+                    this.recorder.dispose();
+                }
+                this.recorder = new Tone.Recorder();
+                Tone.Destination.connect(this.recorder);
+                this.recorder.start();
+            }
+
+            async stopRecording() {
+                if (!this.recorder) return null;
+                const recording = await this.recorder.stop();
+                return recording;
+            }
+
+            async recordAndExport(soundFunction, filename = 'sfx') {
+                await this.startRecording();
+                
+                // Play the sound
+                await soundFunction.call(this);
+                
+                // Wait a bit longer than the sound to capture full decay
+                setTimeout(async () => {
+                    const recording = await this.stopRecording();
+                    if (recording) {
+                        this.downloadRecording(recording, filename);
+                    }
+                }, 3000);
+            }
+
+            downloadRecording(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${filename}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
         }
 
         const sfx = new AppleSFXGenerator();
@@ -824,6 +925,26 @@
                     track.appendChild(timelineEl);
                 }
             });
+        }
+
+        // Export functionality
+        async function exportSound(functionName, filename) {
+            // Get the current settings
+            const currentInstrument = sfx.currentInstrument;
+            const currentEffect = sfx.currentEffect;
+            
+            // If user wants pluck with no effects for success sound
+            if (functionName === 'successSound') {
+                await sfx.changeInstrument('pluck');
+                await sfx.changeEffect('none');
+            }
+            
+            // Record and export the sound
+            await sfx.recordAndExport(sfx[functionName], filename);
+            
+            // Restore original settings
+            await sfx.changeInstrument(currentInstrument);
+            await sfx.changeEffect(currentEffect);
         }
 
         // Initialize timeline when page loads
