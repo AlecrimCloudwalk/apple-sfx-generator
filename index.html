@@ -205,6 +205,17 @@
         </select>
     </div>
 
+    <div class="instrument-selector">
+        <h3>📥 Export Format</h3>
+        <select id="exportFormat">
+            <option value="wav">WAV (Best compatibility)</option>
+            <option value="webm">WebM (Smaller file size)</option>
+        </select>
+        <p style="font-size: 12px; color: #666; margin-top: 5px;">
+            WAV files work in all apps and can be previewed easily
+        </p>
+    </div>
+
     <div class="controls">
         <div class="sound-row">
             <button onclick="sfx.notificationChime()">Notification Chime</button>
@@ -764,12 +775,15 @@
             }
 
             // Recording methods
-            async startRecording() {
+            async startRecording(format = 'wav') {
                 await this.ensureInit();
                 if (this.recorder) {
                     this.recorder.dispose();
                 }
-                this.recorder = new Tone.Recorder();
+                
+                // Set format for better compatibility
+                const mimeType = format === 'wav' ? 'audio/wav' : 'audio/webm';
+                this.recorder = new Tone.Recorder(mimeType);
                 Tone.Destination.connect(this.recorder);
                 this.recorder.start();
             }
@@ -780,8 +794,8 @@
                 return recording;
             }
 
-            async recordAndExport(soundFunction, filename = 'sfx') {
-                await this.startRecording();
+            async recordAndExport(soundFunction, filename = 'sfx', format = 'wav') {
+                await this.startRecording(format);
                 
                 // Play the sound
                 await soundFunction.call(this);
@@ -790,16 +804,17 @@
                 setTimeout(async () => {
                     const recording = await this.stopRecording();
                     if (recording) {
-                        this.downloadRecording(recording, filename);
+                        this.downloadRecording(recording, filename, format);
                     }
                 }, 3000);
             }
 
-            downloadRecording(blob, filename) {
+            downloadRecording(blob, filename, format = 'wav') {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
+                const extension = format === 'wav' ? 'wav' : 'webm';
                 a.href = url;
-                a.download = `${filename}.webm`;
+                a.download = `${filename}.${extension}`;
                 a.click();
                 URL.revokeObjectURL(url);
             }
@@ -932,6 +947,7 @@
             // Get the current settings
             const currentInstrument = sfx.currentInstrument;
             const currentEffect = sfx.currentEffect;
+            const exportFormat = document.getElementById('exportFormat').value;
             
             // If user wants pluck with no effects for success sound
             if (functionName === 'successSound') {
@@ -939,8 +955,8 @@
                 await sfx.changeEffect('none');
             }
             
-            // Record and export the sound
-            await sfx.recordAndExport(sfx[functionName], filename);
+            // Record and export the sound with selected format
+            await sfx.recordAndExport(sfx[functionName], filename, exportFormat);
             
             // Restore original settings
             await sfx.changeInstrument(currentInstrument);
